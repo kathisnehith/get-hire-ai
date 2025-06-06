@@ -8,7 +8,7 @@ import tiktoken
 
 # Setup
 load_dotenv()
-token = os.getenv("GITHUB_API_TOKEN")
+token = st.secrets["GITHUB_API_TOKEN"]
 endpoint = "https://models.inference.ai.azure.com"
 
 embedding_model = OpenAIEmbeddings(
