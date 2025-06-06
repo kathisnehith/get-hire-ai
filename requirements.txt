@@ -4,3 +4,4 @@ langchain-openai
 dotenv
 tiktoken
 openai
+protobuf==3.20.*
