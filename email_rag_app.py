@@ -1,7 +1,10 @@
 import sys
 import pysqlite3
 sys.modules["sqlite3"] = pysqlite3
-
+import chromadb
+from chromadb import Client
+from chromadb.utils import embedding_functions
+from chromadb.config import Settings
 import streamlit as st
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
