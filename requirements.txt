@@ -5,3 +5,8 @@ dotenv
 tiktoken
 openai
 protobuf==3.20.*
+chromadb
+langchain
+langchain-community
+langchain-text-splitters
+langchain-embeddings
