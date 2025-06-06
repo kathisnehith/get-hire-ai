@@ -10,3 +10,4 @@ langchain
 langchain-community
 langchain-text-splitters
 opentelemetry-exporter-otlp
+pysqlite3-binary
