@@ -1,22 +1,21 @@
 import sys
-import pysqlite3
-sys.modules["sqlite3"] = pysqlite3
-import chromadb
-from chromadb import Client
-from chromadb.utils import embedding_functions
-from chromadb.config import Settings
 import streamlit as st
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
+from openai import OpenAI
 from dotenv import load_dotenv
 import os
 import time
 import tiktoken
+from PyPDF2 import PdfReader
+
 
 # Setup
 load_dotenv()
-token = st.secrets["GITHUB_API_TOKEN"]
+token = os.getenv("GITHUB_API_TOKEN")
 endpoint = "https://models.inference.ai.azure.com"
+
+client = OpenAI(base_url=endpoint, api_key=token)
 
 embedding_model = OpenAIEmbeddings(
     model="text-embedding-3-large",
@@ -36,20 +35,45 @@ def count_tokens(text, encoding_name="o200k_base"):
     enc = tiktoken.get_encoding(encoding_name)
     return len(enc.encode(text))
 
+
+def extract_text_from_pdf(file_path):
+    reader = PdfReader(file_path)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text() + "\n"
+    return text.strip()
+
 # Streamlit UI
 st.title("📬 Email Assistant (RAG Powered)")
-query = st.text_input("Purpose of email (e.g. write an email...)", "")
-persona = st.text_input("Writing to (persona) (optional)", "")
+
+#RESUME_DOC
+resume = st.file_uploader("Upload your resume or CV (optional)", type=["pdf"])
+resume_summary = ""
+query = st.text_input("Purpose of email (e.g. write an email...)", value="asking for referral for a job opportunity at company X", max_chars=1000)
+persona = st.text_input("Writing to (persona) (optional)", value="data scientist")
 generate = st.button("Generate email")
 
 if generate and query:
+    if resume is not None:
+        resume_text = extract_text_from_pdf(resume)
+        progress_bar = st.progress(34, text="Summarizing resume...")
+        resume_response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+            {"role": "system", "content": "you would summarize the resume or cv doc provided and summarize based on the context of doc"},
+            {"role": "user", "content": resume_text }
+        ],
+        temperature=0.7
+        )
+        progress_bar.progress(80, text="Processing summary...")
+        resume_summary = resume_response.choices[0].message.content
+        progress_bar.progress(100, text="Resume summarized successfully!")
+        time.sleep(0.7)
+        progress_bar.empty()
     final_prompt = f"{query} - {persona}"
-    with st.spinner("Retrieving relevant context..."):
-        import time
-        start_time = time.time()
+    with st.spinner("Retrieving relevant context...", show_time=True):
         results = vectorstore.similarity_search_with_score(final_prompt, k=2)
-        elapsed = time.time() - start_time
-    st.success(f"Context retrieved in {elapsed:.2f} seconds.")
+    st.success(f"Context retrieved..............")
     retrieved = [doc.page_content for doc, _ in results]
     retrieved_metadata = [doc.metadata for doc, _ in results]
     context = "\n\n---\n\n".join(retrieved)  # Uncomment to show context
@@ -62,20 +86,19 @@ if generate and query:
     st.text(f"Total context tokens: {context_tokens}")
     st.markdown("---")
     # Generate final response with OpenAI LLM
-    from openai import OpenAI
-    client = OpenAI(base_url=endpoint, api_key=token)
 
     llm_prompt = f"""
     {final_prompt}
     ==== CONTEXT START ====
     {context}  
     ==== CONTEXT END ====
+    User's Resume summary: {resume_summary}
     """
-    with st.spinner("Generating email..."):
+    with st.spinner("Generating email...", show_time=True):
         response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": "You are an expert email assistant."},
+                {"role": "system", "content": "You are an expert email writing assistant, using the provided external context for personalized email generation."},
                 {"role": "user", "content": llm_prompt}
             ],
             temperature=0.7
