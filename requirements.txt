@@ -9,4 +9,4 @@ chromadb
 langchain
 langchain-community
 langchain-text-splitters
-langchain-embeddings
+opentelemetry-exporter-otlp
