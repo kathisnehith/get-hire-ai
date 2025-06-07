@@ -1,4 +1,7 @@
+__import__('pysqlite3')
 import sys
+sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+import pysqlite3 as sqlite3
 import streamlit as st
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
@@ -12,7 +15,7 @@ from PyPDF2 import PdfReader
 
 # Setup
 load_dotenv()
-token = os.getenv("GITHUB_API_TOKEN")
+token = st.secrets["GITHUB_API_TOKEN"]
 endpoint = "https://models.inference.ai.azure.com"
 
 client = OpenAI(base_url=endpoint, api_key=token)
