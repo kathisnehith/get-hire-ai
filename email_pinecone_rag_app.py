@@ -12,8 +12,8 @@ from langchain_openai import OpenAIEmbeddings
 
 # Setup
 load_dotenv()
-GITHUB_API_KEY = os.getenv("GITHUB_API_TOKEN")
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+GITHUB_API_KEY = st.secrets["GITHUB_API_KEY"]
+PINECONE_API_KEY = st.secrets["PINECONE_API_KEY"]
 endpoint = "https://models.inference.ai.azure.com"
 
 client = OpenAI(base_url=endpoint, api_key=GITHUB_API_KEY)
@@ -80,7 +80,7 @@ if generate and query:
                                     )
     st.success(f"Context retrieved..............")
     retrieved_text = [match['metadata']['text'] for match in searchresults['matches']]
-    retrieved_metadata = [match['metadata'] for match in searchresults['matches']]
+    retrieved_metadata = [match['metadata']['section'] for match in searchresults['matches']]
     context = "\n-----\n".join(retrieved_text)
     context_tokens = count_tokens(context)
     
@@ -88,8 +88,9 @@ if generate and query:
     for i, metadata in enumerate(retrieved_metadata):
         st.markdown(f"**Document {i+1} : {metadata}**")
     # st.markdown(context)  # Uncomment to show context
-    st.text(f"Total context tokens: {context_tokens}")
     st.markdown("---")
+    st.caption(f"Total retrived_context tokens: {context_tokens}")
+    
     # Generate final response with OpenAI LLM
 
     llm_prompt = f"""
@@ -99,6 +100,7 @@ if generate and query:
     ==== CONTEXT END ====
     User's Resume summary: {resume_summary}
     """
+    st.caption(f"LLM input_prompt tokens: {count_tokens(llm_prompt)}")
     with st.spinner("Generating email...", show_time=True):
         response = client.chat.completions.create(
             model="gpt-4o-mini",
