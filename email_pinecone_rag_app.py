@@ -1,42 +1,33 @@
-__import__('pysqlite3')
-import sys
-sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
-import pysqlite3 as sqlite3
-import streamlit as st
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
-from openai import OpenAI
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv, find_dotenv
 import time
 import tiktoken
 from PyPDF2 import PdfReader
+import pinecone
+import streamlit as st
+from pinecone import Pinecone, ServerlessSpec
+from openai import OpenAI
+from langchain_openai import OpenAIEmbeddings
 
 
 # Setup
 load_dotenv()
-token = st.secrets["GITHUB_API_TOKEN"]
+GITHUB_API_KEY = os.getenv("GITHUB_API_TOKEN")
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
 endpoint = "https://models.inference.ai.azure.com"
 
-client = OpenAI(base_url=endpoint, api_key=token)
+client = OpenAI(base_url=endpoint, api_key=GITHUB_API_KEY)
 
 embedding_model = OpenAIEmbeddings(
-    model="text-embedding-3-large",
-    openai_api_key=token,
+    model="text-embedding-3-large", ## Embedding model
+    openai_api_key=GITHUB_API_KEY,
     openai_api_base=endpoint
 )
-
-# Load prebuilt vectorstore
-persist_dir = "chroma_persist_email_rag"
-vectorstore = Chroma(
-    persist_directory=persist_dir,
-    embedding_function=embedding_model,
-    collection_name="email_rag"
-)
-
-def count_tokens(text, encoding_name="o200k_base"):
-    enc = tiktoken.get_encoding(encoding_name)
-    return len(enc.encode(text))
+# Load prebuilt vectorstore index of PINECONE
+pc = Pinecone(api_key=os.environ.get("PINECONE_API_KEY"))
+index = pc.Index(name='email')
+# View index stats
+index.describe_index_stats()
 
 
 def extract_text_from_pdf(file_path):
@@ -45,6 +36,11 @@ def extract_text_from_pdf(file_path):
     for page in reader.pages:
         text += page.extract_text() + "\n"
     return text.strip()
+
+
+def count_tokens(text, encoding_name="o200k_base"):
+    enc = tiktoken.get_encoding(encoding_name)
+    return len(enc.encode(text))
 
 # Streamlit UI
 st.title("📬 Email Assistant (RAG Powered)")
@@ -58,8 +54,9 @@ generate = st.button("Generate email")
 
 if generate and query:
     if resume is not None:
+        progress_bar = st.progress(15, text="Extracting resume...")
         resume_text = extract_text_from_pdf(resume)
-        progress_bar = st.progress(34, text="Summarizing resume...")
+        progress_bar.progress(34, text="Summarizing resume...")
         resume_response = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
@@ -68,18 +65,23 @@ if generate and query:
         ],
         temperature=0.7
         )
-        progress_bar.progress(80, text="Processing summary...")
+        progress_bar.progress(75, text="Processing summary...")
         resume_summary = resume_response.choices[0].message.content
-        progress_bar.progress(100, text="Resume summarized successfully!")
         time.sleep(0.7)
-        progress_bar.empty()
-    final_prompt = f"{query} - {persona}"
+        progress_bar.progress(100, text="Resume summarized successfully!")
+        st.success("Resume summarized successfully!")
+    final_query = f"{query} - {persona}"
+    final_query_embedding = embedding_model.embed_query(final_query)
     with st.spinner("Retrieving relevant context...", show_time=True):
-        results = vectorstore.similarity_search_with_score(final_prompt, k=2)
+        searchresults = index.query(namespace="email_guide",
+                                    vector= final_query_embedding,
+                                    top_k=2,
+                                    include_metadata=True
+                                    )
     st.success(f"Context retrieved..............")
-    retrieved = [doc.page_content for doc, _ in results]
-    retrieved_metadata = [doc.metadata for doc, _ in results]
-    context = "\n\n---\n\n".join(retrieved)  # Uncomment to show context
+    retrieved_text = [match['metadata']['text'] for match in searchresults['matches']]
+    retrieved_metadata = [match['metadata'] for match in searchresults['matches']]
+    context = "\n-----\n".join(retrieved_text)
     context_tokens = count_tokens(context)
     
     st.subheader("📄 Retrieved Document Metadata")
@@ -91,7 +93,7 @@ if generate and query:
     # Generate final response with OpenAI LLM
 
     llm_prompt = f"""
-    {final_prompt}
+    {final_query}
     ==== CONTEXT START ====
     {context}  
     ==== CONTEXT END ====

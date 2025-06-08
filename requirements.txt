@@ -7,10 +7,10 @@ tiktoken
 openai
 protobuf
 chromadb
+pinecone
 langchain
 langchain-community
 langchain-text-splitters
 opentelemetry-exporter-otlp
-pysqlite3-binary
-pysqlite3
 PyPDF2
+pinecone-client
