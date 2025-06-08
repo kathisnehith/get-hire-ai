@@ -1,1 +1,1 @@
-{"last_found_secrets": [{"name": "GitHub Personal Access Token - /Users/kathisnehith/Desktop/get-hire-ai/.env", "match": "fb658db4249ef2d72b60ec53976f73d5ca05b694b196ddef769edaf198899998"}]}
+{"last_found_secrets": [{"name": "Generic High Entropy Secret - /Users/kathisnehith/Desktop/get-hire-ai/.env", "match": "1b6ac6ddacdd61d451b0cd8e72151addeb6c5f6af9d22ea19f167748891c3748"}, {"name": "GitHub Personal Access Token - /Users/kathisnehith/Desktop/get-hire-ai/.env", "match": "fb658db4249ef2d72b60ec53976f73d5ca05b694b196ddef769edaf198899998"}]}
