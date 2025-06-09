@@ -70,6 +70,7 @@ class StructuredResume(BaseModel):
 
 #st.set_page_config(page_title="Resume Analyzer", page_icon=":mag_right:")
 st.title("Resume Analyzer")
+st.markdown("[Sample DE_Resume(Download)](https://drive.google.com/file/d/1lXAjCY4JrlrwdW1xrTAPBaCSj78fD1bk/view)", help="Download a sample resume to test the job search feature.")
 
 resume_file = st.file_uploader("Upload your resume (PDF format)", type=["pdf"])
 
