@@ -14,3 +14,5 @@ langchain-text-splitters
 opentelemetry-exporter-otlp
 PyPDF2
 pinecone-client
+pydantic
+json
