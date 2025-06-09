@@ -15,4 +15,3 @@ opentelemetry-exporter-otlp
 PyPDF2
 pinecone-client
 pydantic
-json
