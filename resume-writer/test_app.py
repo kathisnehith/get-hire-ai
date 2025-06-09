@@ -11,7 +11,7 @@ from langchain_openai import OpenAIEmbeddings
 from langchain_community.document_loaders import PyPDFLoader
 
 load_dotenv()
-token = st.secrets["GITHUB_API_KEY"]
+token = st.secrets["GITHUB_API_KEY"] #os.environ.get("GITHUB_API_KEY")
 endpoint = "https://models.github.ai/inference"
 client = OpenAI(base_url=endpoint,
     api_key=token)
@@ -123,13 +123,13 @@ if resume_file:
         notes = st.session_state["user_notes"]
         skills_str = "\n".join([f"{skill}: {value}" for skill, value in selected_values.items()])
         result_str = f"Skill Ratings:\n{skills_str}\n\nUser Notes:\n{notes}"
-        # Save to session state for later use
+        # Save to session state
         st.session_state["result_str"] = result_str
         st.session_state["selected_values"] = selected_values
         st.session_state["notes"] = notes
         st.success("Selections saved!")
 
-    # Always show the summary and suggestions if selections are saved
+    # summary and suggestions if selections are saved
     if "result_str" in st.session_state:
         with st.container(border=True):
             st.subheader("Your Skill Ratings")
@@ -138,7 +138,7 @@ if resume_file:
                 for suggestion in s['resume_init_suggestions']:
                     st.write(suggestion)
 
-    # Human input and Generate Resume button are always available after selections
+    # Human loop input and Generate Resume button 
     if "result_str" in st.session_state:
         human_input = st.text_input(
             "Your extra suggestions or feedback......(optional)", value="", max_chars=1000, key="human_input"
@@ -146,18 +146,25 @@ if resume_file:
         if st.button("Generate Resume"):
             if human_input.strip():
                 writer_prompt = f"""Generate a resume based on the following inputs: \
-Human_custom_suggestions: {human_input}\n\nskills rating by user: {st.session_state['result_str']} 
-the Actual resume_text_extract: {resume_text}"""
+                Human_custom_suggestions: {human_input}\n\nskills rating by user: {st.session_state['result_str']} 
+                the Actual resume_text_extract: {resume_text}"""
             else:
                 writer_prompt = f"""Generate a resume based on the following inputs: \
-AI_suggestions: {s['resume_init_suggestions']}\n\nskills rating by user: {st.session_state['result_str']} 
-the Actual resume_text_extract: {resume_text}"""
-            with st.spinner("Generating resume..."):
-                generated_resume = llm_resumewriter_openai(writer_prompt, output_format=StructuredResume)
+                AI_suggestions: {s['resume_init_suggestions']}\n\nskills rating by user: {st.session_state['result_str']} 
+                the Actual resume_text_extract: {resume_text}"""
+            with st.spinner("Generating resume...", show_time=True):
+                generated_resume_response = llm_resumewriter_openai(writer_prompt, output_format=StructuredResume)
+                generated_resume = json.loads(generated_resume_response)
             st.success("Resume generated successfully!")
             st.subheader("Generated Resume")
             with st.container(border=True):
-                st.write(generated_resume)
+                for key, value in generated_resume.items():
+                    st.markdown(f"**{key.replace('_', ' ').title()}**")
+                    if isinstance(value, list):
+                        for item in value:
+                            st.write(item)
+                    else:
+                        st.write(value)
                 # st.json(generated_resume.model_dump())
                 # st.download_button(
                 #     label="Download Resume",
