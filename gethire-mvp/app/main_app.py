@@ -1,0 +1,254 @@
+import time
+import os
+import tempfile
+import sys
+import pandas as pd
+from dotenv import load_dotenv
+import streamlit as st
+
+from utils.model_validation import gemini_api_validation, openai_api_validation
+from utils.doc_extract import extract_text_from_file
+from app.jobsearch_app import jobsearch_main_feature
+from app.email_writer_app import emailwriter_main_feature
+from app.resume_enhance_app import (structured_skills, StructuredResume, skills_rating_suggestions,resume_enhance)
+
+
+load_dotenv()
+# --- Session State Initialization ---
+def init_session_state():
+    if 'page' not in st.session_state:
+        st.session_state.page = 'landing'
+    if 'openai_api_key' not in st.session_state:
+        st.session_state.openai_api_key = ''
+    if 'gemini_api_key' not in st.session_state:
+        st.session_state.gemini_api_key = ''
+    if 'openai_model' not in st.session_state:
+        st.session_state.openai_model = ''
+    if 'gemini_model' not in st.session_state:
+        st.session_state.gemini_model = ''
+    if 'resume_file' not in st.session_state:
+        st.session_state.resume_file = None
+    if 'job_search_inputs' not in st.session_state:
+        st.session_state.job_search_inputs = {}
+    if 'email_inputs' not in st.session_state:
+        st.session_state.email_inputs = {}
+    if 'resume_inputs' not in st.session_state:
+        st.session_state.resume_inputs = {}
+
+init_session_state()
+
+def validate_api_key(gemini_api_key, openai_api_key, gemini_model, openai_model, user_prompt):
+    gemini_ok = False
+    openai_ok = False
+    try:
+        gemini_api_validation(gemini_api_key, gemini_model, user_prompt)
+        gemini_ok = True
+    except Exception as e:
+        st.error(f"Gemini API validation failed: {e}")
+    try:
+        openai_api_validation(openai_api_key, openai_model, user_prompt)
+        openai_ok = True
+    except Exception as e:
+        st.error(f"OpenAI API validation failed: {e}")
+    if gemini_ok and openai_ok:
+        st.success("Both Gemini and OpenAI API keys and models validated successfully!")
+        return True
+    else:
+        if not gemini_ok and not openai_ok:
+            st.error("Both API validations Failed!!! Please check your API keys")
+        elif not gemini_ok:
+            st.error("Gemini API validation failed. Please check your Gemini API key and model.")
+        elif not openai_ok:
+            st.error("OpenAI API validation failed. Please check your OpenAI API key and model.")
+        return False
+
+# --- Landing Page ---
+def render_landing_page():
+    st.title("Landing Page: API & Model Setup")
+    col1, col2 = st.columns(2)
+    col3, col4 = st.columns(2)
+    with col1:
+        openai_key = st.text_input("OpenAI API Key", type="password", value=st.session_state.openai_api_key, key="openai_api_key_input")
+    with col2:
+        gemini_key = st.text_input("Gemini API Key", type="password", value=st.session_state.gemini_api_key, key="gemini_api_key_input")
+    with col3:
+        openai_model = st.selectbox("OpenAI Model", ["openai/gpt-4o", "openai/gpt-4o-mini"],
+            index=["openai/gpt-4o", "openai/gpt-4o-mini"].index(st.session_state.openai_model) if st.session_state.openai_model in ["openai/gpt-4o", "openai/gpt-4o-mini"] else 0,
+            key="openai_model_box")
+    with col4:
+        gemini_model = st.selectbox("Gemini Model", ["gemini-2.0-flash-lite", "gemini-2.0-flash"],
+            index=["gemini-2.0-flash-lite", "gemini-2.0-flash"].index(st.session_state.gemini_model) if st.session_state.gemini_model in ["gemini-2.0-flash-lite", "gemini-2.0-flash"] else 0,
+            key="gemini_model_box")
+    prompt_text = st.text_input("Prompt for Validation", value="Hello, this is a test message to validate the API key.", key="default_prompt_input")
+    # Only show button if all required fields are filled
+    if openai_key and gemini_key is not None:
+        if st.button("Validate API", icon= '🗝️', use_container_width=True):
+            with st.spinner("Validating API keys and models..."):
+                valid = validate_api_key(gemini_key, openai_key, gemini_model, openai_model, prompt_text)
+            if valid:
+                st.session_state["openai_api_key"] = openai_key
+                st.session_state["gemini_api_key"] = gemini_key
+                st.session_state["openai_model"] = openai_model
+                st.session_state["gemini_model"] = gemini_model
+                st.session_state["api_validated"] = True
+    if st.session_state.get("api_validated"):    
+        if st.button("Start the Game", icon='🎯', use_container_width=True):    
+            st.session_state.page = 'main'
+    else:
+        st.info("Please enter both API keys")
+    
+    
+
+# --- Helper Functions ---
+def get_resume_extract():
+    resume_file = st.session_state.resume_file
+    if resume_file is not None:
+        try:
+            resume_text = extract_text_from_file(resume_file)
+            return resume_text
+        except Exception as e:
+            return f"Error extracting resume: {e}"
+    return "No resume uploaded."
+
+# --- Sidebar Navigation ---
+def render_sidebar():
+    st.sidebar.header("Navigation")
+    if st.sidebar.button("Job Search",icon='🖥️', use_container_width=True):
+        st.session_state.page = 'job_search'
+    if st.sidebar.button("Email Writer", icon='📧', use_container_width=True):
+        st.session_state.page = 'email_writer'
+    if st.sidebar.button("Resume Enhancer", icon='🗞️', use_container_width=True):
+        st.session_state.page = 'resume_enhancer'
+    st.sidebar.divider()
+    st.sidebar.button("API/Model Settings", icon='🔐', use_container_width=True, on_click=lambda: st.session_state.update(page='landing'))
+
+# --- Job Search Page ---
+def render_job_search_page():
+    st.header("🔍 Job Search")
+    uploaded_resume_file = st.file_uploader("Drag and drop file here",type=["pdf"],
+    help="Limit 32MB per file.PDF",key="resume_jobsearch_uploader")
+    if uploaded_resume_file is not None:
+        st.session_state["resume_doc"] = uploaded_resume_file
+        st.write(f"Uploaded: {uploaded_resume_file.name} ({uploaded_resume_file.size / 1024 / 1024:.2f} MB)")
+    st.markdown("---") 
+    # Create two rows of columns
+    col1, col2 = st.columns(2)
+    col3, col4 = st.columns(2)
+    col5, col6 = st.columns(2)
+    with col1:
+        job_titles = st.text_input("Enter job titles separated by commas",placeholder="e.g., Data Engineer, \"ML Engineer\"....",
+        help="Use quotes for precise job titles scrape",key="jobtitle_input")
+    with col2:
+        locations = st.text_input("Enter locations separated by commas",placeholder="e.g., New York, Texas, California, USA",
+                                  help="use locations of states or countries",key="location_input")
+    # Second row inputs
+    with col3:
+        experience_level = st.multiselect("Experience level",["Internship","Entry Level", "Mid Level", "Senior Level"],
+        help="Select one or more experience levels",key="experience_select")
+    with col4:
+        date_posted = st.selectbox("Date Posted",["1hr", "2hr", "3hr", "6hr", "Last 24hr","Past Week", "Last 30 days"],
+        help="Select the time frame-focused for todau's job postings",index=None,key="date_posted_select")
+    # Toggle options (outside form)
+    with col5:
+        easy_apply = st.toggle("Easy Apply", value=False, key="easy_apply_form_toggle")
+    with col6:
+        under_10_applicants = st.toggle("Under 10 Applicants", value=False, key="under_10_form_toggle")
+    match_score_threshold = st.slider("Minimum Match Score", min_value=0, max_value=100, value=44)
+
+    if st.button("Search for Jobs", key="search_jobs_btn"):
+        st.session_state.job_search_inputs = {
+            'job_title': job_titles,
+            'location': locations,
+            'experience': experience_level,
+            'date_posted': date_posted,
+            'easy_apply': easy_apply,
+            'under_10_applicants': under_10_applicants,
+            'match_score_threshold': match_score_threshold
+        }
+        #st.success("Job search submitted!")
+        jobsearch_main_feature(
+            st.session_state.gemini_api_key,
+            st.session_state.gemini_model,
+            uploaded_resume_file,
+            job_titles,
+            locations,
+            experience_level,
+            date_posted,
+            easy_apply,
+            under_10_applicants,
+            match_score_threshold
+        )
+# --- Email Writer Page ---
+def render_email_writer_page():
+    st.header("✍️ AI Email Writer")
+    resume_file = st.file_uploader("Upload your resume", type=['pdf'], key="resume_email_uploader")
+    resume_extract = extract_text_from_file(resume_file) if resume_file else ""
+    with st.container(border=True):
+        emailpurpose = st.text_area("What's the purpose of email?", height=68, value="asking for referral for a job opportunity at company X", max_chars=1000,key="email_purpos_input")
+        col1, col2 = st.columns(2)
+        with col1: 
+            persona = st.text_input("Writing to (persona) (optional)", placeholder="data scientist or Hiring Manager", value="", key="persona_input")
+        with col2:
+            tone = st.selectbox("Tone of Email", ['Professional', 'Enthusiastic', 'Formal', 'Casual'], index=0 , key="tone_input")
+        job_details = st.text_input("Job Details(optional)", placeholder="e.g., job title, company name, job description", value="", key="job_details_input")
+    if st.button("Generate Email", key="generate_email_btn"):
+        if not resume_file:
+            st.error("Please upload your resume.")
+            return
+        if not emailpurpose:
+            st.error("Please enter the key points to highlight.")
+            return
+        email = emailwriter_main_feature(
+            openai_model=st.session_state.openai_model,
+            openai_api_key=st.session_state.openai_api_key,
+            pinecone_api_key=os.environ.get("PINECONE_API_KEY") , #st.secrets["PINECONE_API_KEY"],
+            resume_text=resume_extract,
+            user_query=emailpurpose,
+            persona=persona,
+            job_details=job_details
+        )
+        st.session_state.email_inputs = {
+            'resume_file': resume_file,
+            'resume_extract': resume_extract,
+            'emailpurpose': emailpurpose,
+            'persona': persona,
+            'tone': tone,
+            'job_details': job_details
+        }
+        st.success("Email generated!")
+        with st.container(border=True):
+            st.markdown(f"**Generated Email:**\n\n{email}")
+
+# --- Resume Enhancer Page ---
+def render_resume_enhancer_page():
+    st.header("Resume Analyzer")
+    resume_file = st.file_uploader("Upload your resume (PDF format)", type=["pdf"], key="resume_enhancer_uploader")
+    resume_text = extract_text_from_file(resume_file) if resume_file else ""
+
+    openai_api_key = st.session_state.get("openai_api_key")
+    openai_model = st.session_state.get("openai_model")
+    temp = 0.7
+    tokens = 350
+    structured_output = structured_skills
+
+    if resume_file:
+        # Call the skills rating and suggestions UI
+        skills_rating_suggestions(openai_api_key, openai_model, temp, tokens, structured_output, resume_text)
+        ai_suggestions = st.session_state.get('init_suggestion', {}).get('resume_init_suggestions')
+        # Use the human_input value from session state (set inside the container)
+        human_input = st.session_state.get('_human_input_temp', "")
+        resume_enhance(openai_api_key, "openai/gpt-4o", human_input, temp, 1500, StructuredResume, resume_text, ai_suggestions)
+
+# --- Main Page Controller ---
+if st.session_state.page == 'landing':
+    render_landing_page()
+else:
+    render_sidebar()
+    if st.session_state.page == 'main' or st.session_state.page == 'job_search':
+        render_job_search_page()
+    elif st.session_state.page == 'email_writer':
+        render_email_writer_page()
+    elif st.session_state.page == 'resume_enhancer':
+        render_resume_enhancer_page()
+
+
