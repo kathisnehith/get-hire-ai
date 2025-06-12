@@ -13,5 +13,14 @@ langchain-community
 langchain-text-splitters
 opentelemetry-exporter-otlp
 PyPDF2
-pinecone-client
+pypdf
+python-docx
+ipython
+pandas
 pydantic
+beautifulsoup4
+requests
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-genai
