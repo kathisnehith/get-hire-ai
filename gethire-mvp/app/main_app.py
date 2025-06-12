@@ -5,7 +5,7 @@ import sys
 import pandas as pd
 from dotenv import load_dotenv
 import streamlit as st
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from utils.model_validation import gemini_api_validation, openai_api_validation
 from utils.doc_extract import extract_text_from_file
 from app.jobsearch_app import jobsearch_main_feature
