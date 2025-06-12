@@ -201,7 +201,7 @@ def render_email_writer_page():
         email = emailwriter_main_feature(
             openai_model=st.session_state.openai_model,
             openai_api_key=st.session_state.openai_api_key,
-            pinecone_api_key=os.environ.get("PINECONE_API_KEY") , #st.secrets["PINECONE_API_KEY"],
+            pinecone_api_key= st.secrets["PINECONE_API_KEY"], # os.environ.get("PINECONE_API_KEY") ,
             resume_text=resume_extract,
             user_query=emailpurpose,
             persona=persona,
