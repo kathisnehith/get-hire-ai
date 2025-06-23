@@ -103,7 +103,7 @@ def render_landing_page():
                 st.session_state["gemini_model"] = gemini_model
                 st.session_state["api_validated"] = True
     if st.session_state.get("api_validated"):    
-        if st.button("Start the Game", icon='🎯', use_container_width=True):    
+        if st.button("Launch", icon='🚀', use_container_width=True):    
             st.session_state.page = 'main'
     else:
         st.info("Please enter both API keys")
