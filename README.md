@@ -19,45 +19,9 @@ GetHired AI is a job hunting helper that combines the power of LLMs with practic
 
 ## 📊 GetHired AI Workflow
 
-```mermaid
-flowchart TD
-    A[📱 Start GetHired AI] --> B{API Keys Setup}
-    B --> C[🔑 Enter OpenAI & Gemini Keys]
-    C --> D[✅ Keys Validated]
-    D --> E[📄 Upload Resume PDF]
-    E --> F[🎯 Main Dashboard]
-    
-    F --> G[🔍 Job Search]
-    F --> H[✉️ Email Writer]
-    F --> I[📝 Resume Enhancer]
-    
-    G --> J[Enter Job Criteria]
-    J --> K[LinkedIn Job Scraping]
-    K --> L[AI Resume Matching]
-    L --> M[📊 Scored Job Results]
-    
-    H --> N[Enter Email Purpose]
-    N --> O[Select Persona Optional]
-    O --> P[AI Email Generation]
-    P --> Q[✉️ Personalized Email]
-    
-    I --> R[AI Skills Extraction]
-    R --> S[Rate Your Skills 1-10]
-    S --> T[Get AI Suggestions]
-    T --> U[Add Custom Notes Optional]
-    U --> V[Generate Enhanced Resume]
-    V --> W[📋 Structured Resume Output]
-    
-    M --> X[🎯 Apply to Jobs]
-    Q --> X
-    W --> X
-    
-    style A fill:#e1f5fe
-    style F fill:#f3e5f5
-    style M fill:#e8f5e8
-    style Q fill:#fff3e0
-    style W fill:#fce4ec
-```
+<div align="center">
+  <img src="gethire_workflow.svg" alt="GetHired AI Workflow" width="100%" style="max-width: 1200px; height: auto;">
+</div>
 
 ## 🏗️ Project Structure (GetHire MVP)
 
