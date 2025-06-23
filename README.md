@@ -20,7 +20,7 @@ GetHired AI is a job hunting helper that combines the power of LLMs with practic
 ## 📊 GetHired AI Workflow
 
 <div align="center">
-  <img src="gethire_workflow.svg" alt="GetHired AI Workflow" width="100%" style="max-width: 1200px; height: auto;">
+  <img src="gethire_mvp_workflow.svg" alt="GetHired AI Workflow" width="100%" style="max-width: 1200px; height: auto;">
 </div>
 
 ## 🏗️ Project Structure (GetHire MVP)
